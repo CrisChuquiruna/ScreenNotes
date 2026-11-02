@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getCurrentWindow, LogicalPosition, currentMonitor } from '@tauri-apps/api/window';
 import { TitleBar } from './components/TitleBar';
 import { NotesView } from './components/NotesView';
 import { FocusCalendarView } from './components/FocusCalendarView';
@@ -7,15 +8,14 @@ import { Note, DayRoutine, CalendarEvent } from './types';
 const INITIAL_NOTES: Note[] = [
   {
     id: 'note-1',
-    title: 'Ideas & Tareas Rápidas',
-    content: `# ScreenNotes 🚀
-Notita anclada a tu pantalla.
+    title: 'Mi primera nota',
+    content: `# Título de la nota
+Escribe aquí tu contenido o notas rápidas...
 
-- [x] Probar soporte Markdown
-- [ ] Renderizar escena 3D en Blender
-- [ ] Actualizar CV y perfil de LinkedIn
+- [ ] Tarea pendiente
+- [x] Tarea completada
 
-> **Tip:** Haz clic en el ícono de lápiz para editar, o en el pin de arriba para dejarla flotando.`,
+> **Tip:** Usa el ícono del lápiz para editar o la paleta para cambiar de color.`,
     color: 'slate',
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -24,98 +24,141 @@ Notita anclada a tu pantalla.
 
 const INITIAL_ROUTINES: DayRoutine[] = [
   {
-    dayIndex: 1, // Lunes
+    dayIndex: 1,
     dayName: 'Lunes',
-    focus: 'Planificación & Proyectos',
+    focus: '',
     colorTag: 'sky',
-    timeBlocks: [
-      { id: '1', time: '09:00 - 13:00', task: 'Organizar la semana y revisar código', completed: true },
-      { id: '2', time: '14:30 - 18:00', task: 'Desarrollo de features principales', completed: false },
-    ],
+    timeBlocks: [],
   },
   {
-    dayIndex: 2, // Martes
+    dayIndex: 2,
     dayName: 'Martes',
-    focus: '🎨 Blender & Modelado 3D',
+    focus: '',
     colorTag: 'amber',
-    timeBlocks: [
-      { id: '3', time: '10:00 - 13:00', task: 'Modelado de personajes y assets', completed: false },
-      { id: '4', time: '15:00 - 18:00', task: 'Texturizado, shading y render', completed: false },
-    ],
+    timeBlocks: [],
   },
   {
-    dayIndex: 3, // Miércoles
+    dayIndex: 3,
     dayName: 'Miércoles',
-    focus: '💼 Buscar Trabajo & Portfolio',
+    focus: '',
     colorTag: 'emerald',
-    timeBlocks: [
-      { id: '5', time: '09:30 - 12:30', task: 'Enviar postulaciones y conectar en LinkedIn', completed: false },
-      { id: '6', time: '14:00 - 17:00', task: 'Mejorar proyectos del portfolio', completed: false },
-    ],
+    timeBlocks: [],
   },
   {
-    dayIndex: 4, // Jueves
+    dayIndex: 4,
     dayName: 'Jueves',
-    focus: 'Programación & Aprendizaje',
+    focus: '',
     colorTag: 'violet',
-    timeBlocks: [
-      { id: '7', time: '09:00 - 13:00', task: 'Prácticas y cursos técnicos', completed: false },
-    ],
+    timeBlocks: [],
   },
   {
-    dayIndex: 5, // Viernes
+    dayIndex: 5,
     dayName: 'Viernes',
-    focus: 'Review Semanal & Deploy',
+    focus: '',
     colorTag: 'rose',
-    timeBlocks: [
-      { id: '8', time: '10:00 - 14:00', task: 'Cierre de objetivos y commits', completed: false },
-    ],
+    timeBlocks: [],
   },
   {
-    dayIndex: 6, // Sábado
+    dayIndex: 6,
     dayName: 'Sábado',
-    focus: 'Proyectos Personales & Relax',
+    focus: '',
     colorTag: 'slate',
     timeBlocks: [],
   },
   {
-    dayIndex: 0, // Domingo
+    dayIndex: 0,
     dayName: 'Domingo',
-    focus: 'Descanso & Desconexión',
+    focus: '',
     colorTag: 'slate',
     timeBlocks: [],
   },
 ];
 
-const INITIAL_EVENTS: CalendarEvent[] = [
-  {
-    id: 'ev-1',
-    title: 'Revisión de avance semanal',
-    startTime: new Date(Date.now() + 1000 * 60 * 45).toISOString(),
-  },
-];
+const INITIAL_EVENTS: CalendarEvent[] = [];
 
 export function App() {
-  // Ahora inicia por defecto en 'routine'
   const [activeTab, setActiveTab] = useState<'notes' | 'routine'>('routine');
+  const [isCompact, setIsCompact] = useState(false);
 
-  // Notas
+  // Posicionar la app inicialmente arriba del reloj de Windows en el primer arranque
+  useEffect(() => {
+    const initPosition = async () => {
+      const hasPositioned = localStorage.getItem('screen_has_positioned');
+      if (!hasPositioned) {
+        try {
+          const monitor = await currentMonitor();
+          if (monitor) {
+            const scale = monitor.scaleFactor;
+            const screenW = monitor.size.width / scale;
+            const screenH = monitor.size.height / scale;
+
+            const winW = 420;
+            const winH = 580;
+            const taskbarMargin = 60;
+            const sideMargin = 16;
+
+            const targetX = screenW - winW - sideMargin;
+            const targetY = screenH - winH - taskbarMargin;
+
+            const appWindow = getCurrentWindow();
+            await appWindow.setPosition(new LogicalPosition(targetX, targetY));
+            localStorage.setItem('screen_has_positioned', 'true');
+          }
+        } catch (err) {
+          console.error('Error auto-positioning window:', err);
+        }
+      }
+    };
+    initPosition();
+  }, []);
+
+  // Notas (si tenía datos precargados viejos, migramos a limpios)
   const [notes, setNotes] = useState<Note[]>(() => {
     const saved = localStorage.getItem('screen_notes');
-    return saved ? JSON.parse(saved) : INITIAL_NOTES;
+    if (!saved) return INITIAL_NOTES;
+    try {
+      const parsed = JSON.parse(saved);
+      // Si aún contiene el demo inicial viejo de Blender / CV, reseteamos a genérico
+      if (Array.isArray(parsed) && parsed[0]?.title === 'Ideas & Tareas Rápidas') {
+        return INITIAL_NOTES;
+      }
+      return parsed;
+    } catch {
+      return INITIAL_NOTES;
+    }
   });
   const [activeNoteId, setActiveNoteId] = useState<string>(() => notes[0]?.id || 'note-1');
 
-  // Rutinas
+  // Rutinas (si tenía datos precargados de demostración viejos, limpiamos a estructura en blanco)
   const [routines, setRoutines] = useState<DayRoutine[]>(() => {
     const saved = localStorage.getItem('screen_routines');
-    return saved ? JSON.parse(saved) : INITIAL_ROUTINES;
+    if (!saved) return INITIAL_ROUTINES;
+    try {
+      const parsed = JSON.parse(saved);
+      // Si contiene los textos viejos de ejemplo, reseteamos a rutinas limpias
+      if (Array.isArray(parsed) && parsed.some((r: DayRoutine) => r.focus?.includes('Blender'))) {
+        return INITIAL_ROUTINES;
+      }
+      return parsed;
+    } catch {
+      return INITIAL_ROUTINES;
+    }
   });
 
-  // Eventos de calendario
+  // Eventos de calendario (inicia vacío sin eventos mock)
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(() => {
     const saved = localStorage.getItem('screen_events');
-    return saved ? JSON.parse(saved) : INITIAL_EVENTS;
+    if (!saved) return INITIAL_EVENTS;
+    try {
+      const parsed = JSON.parse(saved);
+      // Filtrar el demo viejo si existía
+      if (Array.isArray(parsed)) {
+        return parsed.filter((e: CalendarEvent) => e.title !== 'Revisión de avance semanal');
+      }
+      return parsed;
+    } catch {
+      return INITIAL_EVENTS;
+    }
   });
 
   // Persistencia
@@ -140,7 +183,7 @@ export function App() {
     const newNote: Note = {
       id: `note-${Date.now()}`,
       title: 'Nueva Nota',
-      content: '# Nueva Nota\n\n- [ ] Primera tarea',
+      content: '# Título\n\n- [ ] Tarea pendiente',
       color: 'slate',
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -189,6 +232,8 @@ export function App() {
         <TitleBar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
+          isCompact={isCompact}
+          setIsCompact={setIsCompact}
         />
 
         <div className="flex-1 overflow-hidden">
@@ -208,6 +253,7 @@ export function App() {
               calendarEvents={calendarEvents}
               onAddCalendarEvent={handleAddCalendarEvent}
               onSyncGoogleEvents={handleSyncGoogleEvents}
+              isCompact={isCompact}
             />
           )}
         </div>

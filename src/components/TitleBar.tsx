@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Pin, PinOff, Minus, X, StickyNote, Calendar } from 'lucide-react';
+import { getCurrentWindow, LogicalSize, LogicalPosition } from '@tauri-apps/api/window';
+import { Pin, PinOff, Minus, X, StickyNote, Calendar, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface TitleBarProps {
   activeTab: 'notes' | 'routine';
   setActiveTab: (tab: 'notes' | 'routine') => void;
+  isCompact: boolean;
+  setIsCompact: (compact: boolean | ((prev: boolean) => boolean)) => void;
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({
   activeTab,
   setActiveTab,
+  isCompact,
+  setIsCompact,
 }) => {
   const [isPinned, setIsPinned] = useState(false);
 
@@ -24,21 +28,93 @@ export const TitleBar: React.FC<TitleBarProps> = ({
     }
   };
 
-  const minimize = async () => {
+  // Expandir la ventana hacia arriba manteniendo la base fija en pantalla
+  const expandWindow = async () => {
     try {
       const appWindow = getCurrentWindow();
-      await appWindow.minimize();
+      const currentPos = await appWindow.outerPosition();
+      const scaleFactor = await appWindow.scaleFactor();
+
+      const normalHeight = 580;
+      const compactHeight = 175;
+      const windowWidth = 420;
+
+      const currentLogicalY = currentPos.y / scaleFactor;
+      const currentLogicalX = currentPos.x / scaleFactor;
+
+      const delta = normalHeight - compactHeight;
+      const newY = currentLogicalY - delta;
+
+      await appWindow.setSize(new LogicalSize(windowWidth, normalHeight));
+      await appWindow.setPosition(new LogicalPosition(currentLogicalX, newY));
+      setIsCompact(false);
     } catch (err) {
-      console.error('Error minimizing:', err);
+      console.error('Error expanding window:', err);
     }
   };
 
-  const close = async () => {
+  // Alternar entre modo Widget Compacto y modo Normal Expandido manteniendo la base fija
+  const toggleCompactMode = async () => {
     try {
       const appWindow = getCurrentWindow();
-      await appWindow.close();
+      const nextState = !isCompact;
+
+      const currentPos = await appWindow.outerPosition();
+      const scaleFactor = await appWindow.scaleFactor();
+
+      const normalHeight = 580;
+      const compactHeight = 175;
+      const windowWidth = 420;
+
+      const currentLogicalY = currentPos.y / scaleFactor;
+      const currentLogicalX = currentPos.x / scaleFactor;
+
+      if (nextState) {
+        // Al compactar: el borde inferior se mantiene donde estaba, la parte superior baja
+        const delta = normalHeight - compactHeight;
+        const newY = currentLogicalY + delta;
+
+        await appWindow.setSize(new LogicalSize(windowWidth, compactHeight));
+        await appWindow.setPosition(new LogicalPosition(currentLogicalX, newY));
+      } else {
+        // Al expandir: la parte superior sube, el borde inferior se mantiene
+        const delta = normalHeight - compactHeight;
+        const newY = currentLogicalY - delta;
+
+        await appWindow.setSize(new LogicalSize(windowWidth, normalHeight));
+        await appWindow.setPosition(new LogicalPosition(currentLogicalX, newY));
+      }
+      setIsCompact(nextState);
     } catch (err) {
-      console.error('Error closing:', err);
+      console.error('Error changing window size/position:', err);
+    }
+  };
+
+  // Si hace clic en "Notas" estando en modo compacto, se auto-expande la ventana
+  const handleTabClick = (tab: 'notes' | 'routine') => {
+    if (tab === 'notes' && isCompact) {
+      expandWindow();
+    }
+    setActiveTab(tab);
+  };
+
+  // Al minimizar: se oculta a la bandeja del sistema (System Tray)
+  const minimizeToTray = async () => {
+    try {
+      const appWindow = getCurrentWindow();
+      await appWindow.hide();
+    } catch (err) {
+      console.error('Error hiding to tray:', err);
+    }
+  };
+
+  // Al presionar la X: también se oculta a la bandeja del sistema
+  const closeToTray = async () => {
+    try {
+      const appWindow = getCurrentWindow();
+      await appWindow.hide();
+    } catch (err) {
+      console.error('Error hiding to tray:', err);
     }
   };
 
@@ -50,7 +126,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
       {/* Pestañas */}
       <div className="flex items-center gap-1.5" data-tauri-drag-region>
         <button
-          onClick={() => setActiveTab('routine')}
+          onClick={() => handleTabClick('routine')}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
             activeTab === 'routine'
               ? 'bg-blue-600/30 border border-blue-500/40 text-white shadow-sm'
@@ -62,7 +138,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('notes')}
+          onClick={() => handleTabClick('notes')}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
             activeTab === 'notes'
               ? 'bg-blue-600/30 border border-blue-500/40 text-white shadow-sm'
@@ -76,6 +152,15 @@ export const TitleBar: React.FC<TitleBarProps> = ({
 
       {/* Controles de ventana */}
       <div className="flex items-center gap-1">
+        {/* Botón Compactar / Expandir Widget */}
+        <button
+          onClick={toggleCompactMode}
+          title={isCompact ? 'Expandir hacia arriba' : 'Compactar hacia abajo (fijo sobre la hora)'}
+          className="p-1.5 rounded-md text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors cursor-pointer"
+        >
+          {isCompact ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+
         {/* Pin / Always on Top */}
         <button
           onClick={togglePin}
@@ -89,19 +174,19 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           {isPinned ? <Pin size={13} /> : <PinOff size={13} />}
         </button>
 
-        {/* Minimizar */}
+        {/* Minimizar a la bandeja */}
         <button
-          onClick={minimize}
-          title="Minimizar"
+          onClick={minimizeToTray}
+          title="Minimizar a la bandeja del sistema"
           className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
         >
           <Minus size={13} />
         </button>
 
-        {/* Cerrar */}
+        {/* Cerrar a la bandeja */}
         <button
-          onClick={close}
-          title="Cerrar"
+          onClick={closeToTray}
+          title="Ocultar en la bandeja (no cierra la app)"
           className="p-1.5 rounded-md text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
         >
           <X size={13} />

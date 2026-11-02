@@ -95,18 +95,42 @@ export const NotesView: React.FC<NotesViewProps> = ({
     }, 10);
   };
 
-  const handleCheckboxToggle = (index: number) => {
+  const handleCheckboxToggle = (targetIndex: number) => {
     let checkCount = 0;
-    const updatedContent = currentNote.content.replace(/\[([ xX])\]/g, (match, state) => {
-      if (checkCount === index) {
+    let found = false;
+
+    // 1. Reemplazar sobre la lista de tareas en Markdown (- [ ] o 1. [ ])
+    const updatedContent = currentNote.content.replace(
+      /(^|\n)(\s*(?:[-*+]|\d+\.)\s*\[)([ xX])(\])/g,
+      (match, p1, p2, state, p4) => {
+        if (checkCount === targetIndex) {
+          found = true;
+          checkCount++;
+          const newState = state === ' ' ? 'x' : ' ';
+          return `${p1}${p2}${newState}${p4}`;
+        }
         checkCount++;
+        return match;
+      }
+    );
+
+    if (found) {
+      onUpdateNote({ ...currentNote, content: updatedContent, updatedAt: Date.now() });
+      return;
+    }
+
+    // 2. Fallback para [ ] o [x] genéricos
+    let fallbackCount = 0;
+    const fallbackContent = currentNote.content.replace(/\[([ xX])\]/g, (match, state) => {
+      if (fallbackCount === targetIndex) {
+        fallbackCount++;
         return state === ' ' ? '[x]' : '[ ]';
       }
-      checkCount++;
+      fallbackCount++;
       return match;
     });
 
-    onUpdateNote({ ...currentNote, content: updatedContent, updatedAt: Date.now() });
+    onUpdateNote({ ...currentNote, content: fallbackContent, updatedAt: Date.now() });
   };
 
   return (
@@ -265,17 +289,26 @@ export const NotesView: React.FC<NotesViewProps> = ({
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                input: ({ checked, ...props }) => {
+                input: ({ checked, type, ...rest }) => {
+                  if (type !== 'checkbox') {
+                    return <input type={type} {...rest} />;
+                  }
+
                   return (
                     <input
                       type="checkbox"
-                      checked={checked}
-                      onChange={() => {
-                        const allBoxes = document.querySelectorAll('.markdown-body input[type="checkbox"]');
-                        const index = Array.from(allBoxes).indexOf(props as unknown as Element);
-                        if (index !== -1) handleCheckboxToggle(index);
+                      checked={Boolean(checked)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        const container = e.currentTarget.closest('.markdown-body');
+                        if (!container) return;
+                        const allBoxes = Array.from(container.querySelectorAll('input[type="checkbox"]'));
+                        const index = allBoxes.indexOf(e.currentTarget);
+                        if (index !== -1) {
+                          handleCheckboxToggle(index);
+                        }
                       }}
-                      className="cursor-pointer accent-blue-500 rounded"
+                      className="cursor-pointer accent-blue-500 rounded mr-2 w-3.5 h-3.5 align-middle transition-transform hover:scale-110 active:scale-95"
                     />
                   );
                 },

@@ -5,6 +5,9 @@ use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::Manager;
 
 #[derive(Serialize, Deserialize)]
 pub struct GoogleAuthResponse {
@@ -67,10 +70,8 @@ async fn google_login(client_id: String, client_secret: Option<String>) -> Resul
         client_id, redirect_uri, challenge
     );
 
-    // Abrir navegador
     open::that(&auth_url).map_err(|e| format!("No se pudo abrir el navegador: {}", e))?;
 
-    // Esperar la conexión de vuelta desde el navegador
     let (mut stream, _) = listener
         .accept()
         .map_err(|e| format!("Error esperando respuesta de Google: {}", e))?;
@@ -281,6 +282,56 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![google_login, fetch_google_events])
+        .setup(|app| {
+            // Menú contextual para la bandeja del sistema (System Tray)
+            let show_i = MenuItem::with_id(app, "show", "Mostrar ScreenNotes", true, None::<&str>)?;
+            let quit_i = MenuItem::with_id(app, "quit", "Salir por completo", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+
+            // Construir el TrayIcon al lado del reloj
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .tooltip("ScreenNotes")
+                .menu(&menu)
+                .on_menu_event(|app, event| {
+                    match event.id.as_ref() {
+                        "show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.unminimize();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        "quit" => {
+                            app.exit(0);
+                        }
+                        _ => {}
+                    }
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let is_visible = window.is_visible().unwrap_or(false);
+                            if is_visible {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.unminimize();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                })
+                .build(app)?;
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
