@@ -121,5 +121,5 @@ Este proyecto está bajo la Licencia **MIT**. Consulta el archivo `LICENSE` para
 ---
 
 <div align="center">
-  Hecho con ❤️ por <b>[Tu Nombre / Tu Alias]</b> • <a href="https://linkedin.com">LinkedIn</a> • <a href="https://tu-portfolio.com">Portfolio</a>
+  Hecho con ❤️ por <b>Cristian Chuquiruna</b> • <a href="https://linkedin.com">LinkedIn</a> • <a href="https://tu-portfolio.com">Portfolio</a>
 </div>
