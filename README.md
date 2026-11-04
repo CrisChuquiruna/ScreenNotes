@@ -9,6 +9,7 @@
   [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
   [![Rust](https://img.shields.io/badge/Backend-Rust-dea584?logo=rust&logoColor=black)](https://www.rust-lang.org/)
+  [![Release](https://img.shields.io/github/v/release/CrisChuquiruna/ScreenNotes?color=success&label=Versi%C3%B3n)](https://github.com/CrisChuquiruna/ScreenNotes/releases/latest)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
   <br />
@@ -24,7 +25,22 @@
 
 **ScreenNotes** es una aplicación de escritorio diseñada para profesionales, programadores y creativos que necesitan gestionar sus notas rápidas, bloques de tiempo y eventos sin romper su flujo de trabajo.
 
-A diferencia de las alternativas tradicionales construidas sobre Electron que consumen cientos de megabytes de RAM, ScreenNotes aprovecha la arquitectura moderna de **Tauri v2** y **Rust** para ofrecer un ejecutable compacto (< 10 MB) con un consumo de recursos prácticamente imperceptible.
+A diferencia de las alternativas tradicionales construidas sobre Electron que consumen cientos de megabytes de RAM, ScreenNotes aprovecha la arquitectura moderna de **Tauri v2** y **Rust** para ofrecer un instalador ultra compacto (**~2.8 MB**) con un consumo de recursos prácticamente imperceptible.
+
+---
+
+## 📥 Descarga e Instalación
+
+Puedes descargar la última versión compilada directamente desde [**GitHub Releases**](https://github.com/CrisChuquiruna/ScreenNotes/releases/latest):
+
+| Sistema Operativo | Formato | Tamaño | Descripción / Uso |
+| :--- | :---: | :---: | :--- |
+| **Windows** | [`.exe`](https://github.com/CrisChuquiruna/ScreenNotes/releases/latest) | **~2.8 MB** | **Recomendado.** Asistente de instalación estándar (NSIS) con accesos directos. |
+| **Windows** | [`.msi`](https://github.com/CrisChuquiruna/ScreenNotes/releases/latest) | ~3.9 MB | Paquete Windows Installer para despliegues o entornos corporativos. |
+| **Linux (Ubuntu / Debian / Mint)** | [`.deb`](https://github.com/CrisChuquiruna/ScreenNotes/releases/latest) | ~4.4 MB | Paquete nativo de instalación (`sudo dpkg -i ...deb`). |
+| **Linux (Universal Portable)** | [`.AppImage`](https://github.com/CrisChuquiruna/ScreenNotes/releases/latest) | ~79 MB | Portable para cualquier distribución sin instalar dependencias (`chmod +x`). |
+| **Linux (Fedora / RHEL / openSUSE)** | [`.rpm`](https://github.com/CrisChuquiruna/ScreenNotes/releases/latest) | ~4.4 MB | Paquete nativo para distribuciones basadas en RPM (`sudo rpm -i ...rpm`). |
+| **macOS** | `.dmg` | — | *(En proceso de distribución CI/CD)* |
 
 ---
 
@@ -54,7 +70,7 @@ A diferencia de las alternativas tradicionales construidas sobre Electron que co
 
 | Métrica | Alternativa típica (Electron) | ScreenNotes (Tauri v2) |
 | :--- | :---: | :---: |
-| **Tamaño del instalador** | ~80 MB – 150 MB | **~8 MB** |
+| **Tamaño del instalador** | ~80 MB – 150 MB | **~2.84 MB** |
 | **Uso de memoria RAM** | 150 MB – 300 MB | **~25 MB – 40 MB** |
 | **Backend** | Node.js empaquetado | **Rust nativo** |
 | **Motor Web** | Chromium embebido | **Webview nativo del OS** |
@@ -69,48 +85,50 @@ A diferencia de las alternativas tradicionales construidas sobre Electron que co
 - **Markdown:** `react-markdown` + `remark-gfm`
 - **Backend de Escritorio:** [Tauri v2](https://tauri.app/) (Rust)
 - **APIs & Conectividad:** `tauri-plugin-http`, `reqwest` con TLS nativo
+- **CI/CD:** GitHub Actions Matrix Build (Windows, Ubuntu, macOS)
 
 ---
 
-## 🚀 Instalación y Desarrollo Local
+## 🚀 Desarrollo Local
+
+Si deseas clonar el proyecto y contribuir o modificarlo:
 
 ### Prerrequisitos
 
-1. **Node.js** (versión 18 o superior recomendada)
+1. **Node.js** (v18+ recomendado)
 2. **Rust** y `cargo` (instalar vía [rustup.rs](https://rustup.rs/))
-3. Dependencias del sistema de Tauri según tu sistema operativo ([Guía de requisitos de Tauri](https://v2.tauri.app/start/prerequisites/))
+3. Dependencias del sistema de Tauri según tu sistema operativo ([Guía oficial de Tauri](https://v2.tauri.app/start/prerequisites/))
 
 ### Pasos
 
 1. **Clonar el repositorio:**
    ```bash
-   git clone https://github.com/tu-usuario/ScreenNotes.git
+   git clone https://github.com/CrisChuquiruna/ScreenNotes.git
    cd ScreenNotes
    ```
 
-2. **Instalar dependencias de Node:**
+2. **Instalar dependencias:**
    ```bash
    npm install
    ```
 
-3. **Iniciar en modo desarrollo (Hot-Reloading):**
+3. **Iniciar en modo desarrollo (Hot-Reload):**
    ```bash
    npm run tauri dev
    ```
 
-4. **Compilar el ejecutable para producción:**
+4. **Compilar instaladores localmente:**
    ```bash
    npm run tauri build
    ```
-   *El instalador generado se encontrará en `src-tauri/target/release/bundle/`.*
 
 ---
 
 ## 📦 Plataformas Soportadas
 
 - [x] **Windows** (`.exe`, `.msi`)
-- [ ] **macOS** (`.dmg`, `.app` — Apple Silicon & Intel) *(En proceso de distribución CI/CD)*
-- [ ] **Linux** (`.deb`, `.AppImage`) *(En proceso de distribución CI/CD)*
+- [x] **Linux** (`.deb`, `.rpm`, `.AppImage`)
+- [ ] **macOS** (`.dmg`, `.app` — Apple Silicon & Intel) *(En proceso)*
 
 ---
 
@@ -121,4 +139,5 @@ Este proyecto está bajo la Licencia **MIT**. Consulta el archivo `LICENSE` para
 ---
 
 <div align="center">
-  Hecho con ❤️ por <b>Cristian Chuquiruna</b> • <a href="https://www.linkedin.com/in/crischuquiruna/">LinkedIn</a> 
+  Hecho con ❤️ por <b>Cristian Chuquiruna</b> • <a href="https://www.linkedin.com/in/crischuquiruna/">LinkedIn</a>
+</div>
